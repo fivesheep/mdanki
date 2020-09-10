@@ -1,10 +1,9 @@
 /* eslint-disable no-param-reassign */
 const fs = require('fs');
-const path = require('path');
 
 const configs = require('./configs');
 const CardParser = require('./parsers/card_parser');
-const Media = require('./models/media');
+const MediaParser = require('./parsers/media_parser');
 
 /**
  * @typedef {import('./models/card').Card} Card
@@ -88,42 +87,14 @@ class FileSerializer {
    */
   mediaFromCards(cards) {
     const mediaList = [];
+    const mediaParser = new MediaParser(mediaList);
 
-    cards.forEach((card) => {
-      card.front = this.prepareMediaForSide(card.front, mediaList);
-      card.back = this.prepareMediaForSide(card.back, mediaList);
+    cards.forEach(async (card) => {
+      card.front = await mediaParser.parse(card.front);
+      card.back = await mediaParser.parse(card.back);
     });
 
     return mediaList;
-  }
-
-  /**
-   * Prepare media from card's and prepare it for using
-   * @param {string} side
-   * @param {[Media]} mediaList
-   * @private
-   */
-  prepareMediaForSide(side, mediaList) {
-    const pattern = /src="([^"]*?)"/g;
-
-    const prepare = (match, p1) => {
-      const filePath = path.resolve(path.dirname(this.source), p1);
-      const fileExt = path.extname(filePath);
-
-      const data = fs.readFileSync(filePath);
-      const media = new Media(data);
-
-      media.fileName = `${media.checksum}${fileExt}`;
-
-      const hasMedia = mediaList.some((item) => item.checksum === media.checksum);
-      if (!hasMedia) {
-        mediaList.push(media);
-      }
-
-      return `src="${media.fileName}"`;
-    };
-
-    return side.replace(pattern, prepare);
   }
 }
 
